@@ -1,7 +1,12 @@
-import {css, jsx} from '@emotion/core';
+import {css} from '@emotion/core';
 import ThemeButton from 'styles/ThemeButton';
 import React from 'react'
-
+import {Icon} from 'antd';
+// const toggleTheme = () => {
+// return (
+// 	<Switch checkedChildren={<Icon type="bulb" />}
+// )
+// }
 const Main = ({children, setIsDark, isDark}) => (
 	<div css={theme => css`
 				padding: 20px;
@@ -20,7 +25,7 @@ const Main = ({children, setIsDark, isDark}) => (
 				color: ${theme.buttonTextHover};
 			}
 		`} onClick={() => setIsDark()}>
-			Change to {isDark ? "light" : "dark"} mode
+			Change to {isDark ? <Icon type="bulb" /> : <Icon type="bulb" theme="filled" />} mode
 		</ThemeButton>
 		<div css={css`
 			text-align: center;

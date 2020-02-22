@@ -1,15 +1,18 @@
-import {fetchCurrencyData, fetchExchangeData} from 'services/currencyServices';
 import {Cashify} from 'cashify';
-import currency from 'currency.js';
-
+import {fetchCurrencyData, fetchExchangeData, fetchHistoricalRates} from 'services/currencyServices';
+import dummyRates from 'utils/tableHelpers'
 const initialState = {
 	rates: null,
 	baseCurrency: 'USD',
 	quoteCurrency: 'EUR',
 	amount: 1,
-	result: null,
+	result: '0.92',
 	currencies: [],
-	isError: false
+	isError: false,
+	historical: {
+		date: '2019-01-01',
+		rates: dummyRates
+	}
 }
 
 export const FETCH_RATES = 'FETCH_RATES';
@@ -23,22 +26,39 @@ export const SWAP_CURRENCY = 'SWAP_CURRENCY';
 export const FETCH_QUOTE = 'FETCH_QUOTE';
 export const REMOVE_BASE_CURRENCY = 'REMOVE_BASE_CURRENCY';
 
+export const FETCH_HISTORICAL_RATES = 'FETCH_HISTORICAL_RATES';
 export const REMOVE_QUOTE_CURRENCY = 'REMOVE_QUOTE_CURRENCY'
 
 /**
  * @route '${baseApiUrl}/rates'
  * @response object {"AED": "3.6731", "AFN": "77.254999", "ALL": "111.739761"}
  */
-export const getRates = () => async (dispatch, getState) => {
+export const getRates = (base) => async (dispatch, getState) => {
+	const {conversionData} = getState();
 	try {
-		const ratesResponse = await fetchExchangeData();
-		dispatch({type: FETCH_RATES, payload: ratesResponse.data});
+
+		const ratesResponse = await fetchExchangeData(conversionData.baseCurrency);
+		let rates = ratesResponse.data.rates
+		dispatch({type: FETCH_RATES, payload: rates});
 	} catch (e) {
 		dispatch({type: FETCH_ERROR, payload: e.message});
 	}
 }
+const formatRatesResponse = (rates) => {
+	return rates.map((rate, index) => ({id: `${index}`, currency: `${rate[0]}`, rate: `${rate[1]}`}))
+}
 
-const formatResponse = (results) => {
+
+export const getHistoricalRates = (date) => async (dispatch, getState) => {
+	try {
+		const ratesResponse = await fetchHistoricalRates(date);
+		const formattedRates = await formatRatesResponse(Object.entries(ratesResponse.data.rates))
+		dispatch({type: FETCH_HISTORICAL_RATES, payload: {date, rates: formattedRates}})
+	} catch (e) {
+		dispatch({type: FETCH_ERROR, payload: e.message});
+	}
+}
+const formatCurrenciesResponse = (results) => {
 	return results.map(curr => ({code: `${curr[0]}`, fullName: `${curr[1]}`}));
 }
 /**
@@ -47,25 +67,14 @@ const formatResponse = (results) => {
  * @response Array  [{code: 'AED',fullName: 'United Arab Emirates Dirham'},{code: 'AFN',fullName: 'Afghan Afghani'}]
  * @desc fetch currencies list
  */
-export const getCurrencies = (fn) => async (dispatch) => {
+export const getCurrencies = () => async (dispatch) => {
 	try {
 		const currenciesResponse = await fetchCurrencyData();
-		const results = await Object.entries(currenciesResponse.data)
-		let formattedResponse = formatResponse(results);
+		let formattedResponse = await formatCurrenciesResponse(Object.entries(currenciesResponse.data));
 		dispatch({type: FETCH_CURRENCIES, payload: formattedResponse})
 	} catch (e) {
 		dispatch({type: FETCH_ERROR, payload: e.message});
 	}
-}
-
-export const fetchData = () => async (dispatch, getState) => {
-	const {conversionData} = getState();
-	// if (!conversionData.currencies.length) {
-		await getRates();
-		await getCurrencies();
-	// } else {
-	// 	return null;
-	// }
 }
 
 /**
@@ -75,19 +84,38 @@ export const fetchData = () => async (dispatch, getState) => {
  */
 export const fetchQuote = () => async (dispatch, getState) => {
 	const {conversionData} = getState();
-	const {amount, baseCurrency, quoteCurrency, rates} = conversionData;
-	const cashify = new Cashify({base: baseCurrency, rates});
-	const converted = cashify.convert(amount, {from: baseCurrency, to: quoteCurrency});
 	try {
+		// await getRates()
 		// const quoteResult = await getConversionResult(amount, baseCurrency, quoteCurrency, rates);
-		dispatch({type: SET_QUOTE_AMOUNT, payload: converted})
+		const ratesResponse = await fetchExchangeData(conversionData.baseCurrency);
+		await dispatch({type: FETCH_RATES, payload: ratesResponse.data.rates});
+		const {amount, baseCurrency, quoteCurrency, rates} = conversionData;
+		const cashify = await new Cashify({base: baseCurrency, rates});
+		const converted = await cashify.convert(amount, {from: baseCurrency, to: quoteCurrency}).toFixed(2);
+		await dispatch({type: SET_QUOTE_AMOUNT, payload: converted})
+	} catch (e) {
+		dispatch({type: FETCH_ERROR, payload: e.message});
+	}
+}
+
+export const swapCurrency = () => async (dispatch, getState) => {
+	const {conversionData} = getState();
+	dispatch({type: SWAP_CURRENCY})
+	try {
+		if (conversionData.amount) {
+			await getRates();
+			const {amount, baseCurrency, quoteCurrency, rates} = conversionData;
+			const cashify = await new Cashify({base: baseCurrency, rates});
+			const converted = await cashify.convert(amount, {from: baseCurrency, to: quoteCurrency}).toFixed(2);
+			await dispatch({type: SET_QUOTE_AMOUNT, payload: converted})
+		}
+
 	} catch (e) {
 		dispatch({type: FETCH_ERROR, payload: e.message});
 	}
 }
 
 export const inputChange = (amount) => (dispatch, getState) => {
-	const {conversionData} = getState();
 	dispatch({type: SET_BASE_AMOUNT, payload: amount})
 }
 
@@ -118,9 +146,8 @@ export default (state = initialState, action) => {
 			return {...state, baseCurrency: action.payload};
 		case REMOVE_QUOTE_CURRENCY:
 			return {...state, quoteCurrency: action.payload};
-		// case SET_CONVERSION:
-		// 	return {...state, rates: action.payload.rates, baseCurrency: action.payload.base};
-
+		case FETCH_HISTORICAL_RATES:
+			return {...state, historical: {...state.historical, ...action.payload}};
 		case SWAP_CURRENCY:
 			const prevState = {...state}
 			return {...state, baseCurrency: prevState.quoteCurrency, quoteCurrency: prevState.baseCurrency, amount: prevState.result, result: prevState.amount};
