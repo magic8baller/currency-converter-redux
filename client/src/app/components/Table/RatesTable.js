@@ -1,12 +1,7 @@
 import React, {Component} from 'react';
 import {connect} from 'react-redux';
-import {debounce} from "utils/tableHelpers";
-const CurrencyRateRow = ({currency, rate}) => (
-	<tr>
-		<td>{currency}</td>
-		<td>{rate}</td>
-	</tr>
-)
+import {debounce, formatCurrency} from "utils/tableHelpers";
+import CurrencyRateRow from './CurrencyRateRow';
 class RatesTable extends Component {
 	constructor (props) {
 		super(props);
@@ -27,26 +22,38 @@ class RatesTable extends Component {
 	}
 
 	loadRates = () => {
-		this.props.getHistoricalRates()
+		this.props.getHistoricalRates(this.props.date)
 		this.setState({
-			hasMore: (this.props.rates.length <100),
+			hasMore: (this.props.rates.length < 100),
 			isLoading: false
 		})
+	}
+	componentWillMount () {
+		this.loadRates()
+	}
+
+	shouldComponentUpdate(nextProps, nextState){
+		if (this.props.rates !== nextProps.rates){
+			return true
+		}
+		return false;
 	}
 	render () {
 		const {rates, filterText} = this.props;
 		const rows = [];
-		rates.map((curr, idx) => {
+
+		rates.slice(0, 10).map((curr, idx) => {
 			if (curr[0].toLowerCase().indexOf(filterText.toLowerCase()) === -1) {
-				return
+				return;
 			}
-			rows.push(<CurrencyRateRow key={idx} currency={curr[0]} rate={curr[1]} />)
+			let formattedRate = formatCurrency(curr[0], Number(curr[1]))
+			rows.push(<CurrencyRateRow key={idx} currency={curr[0]} rate={formattedRate} />)
 			return rows;
 		})
 		return (
 			<div ref="myscroll"
-				style={{height: "420px", overflow: "auto"}}>
-				<table>
+				style={{height: "420px", overflow: "auto", border: '2px red solid', justifyContent: "center"}}>
+				<table style={{textAlign: "center"}}>
 					<thead>
 						<tr>
 							<th>Currency</th>
@@ -56,7 +63,8 @@ class RatesTable extends Component {
 					<tbody>
 						{rows}
 					</tbody>
-				</table></div>
+				</table>
+				</div>
 		)
 	}
 }

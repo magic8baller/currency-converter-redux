@@ -1,6 +1,6 @@
 import {Cashify} from 'cashify';
 import {fetchCurrencyData, fetchExchangeData, fetchHistoricalRates} from 'services/currencyServices';
-import dummyRates from 'utils/tableHelpers'
+import dummyRates from 'utils/tableHelpers';
 const initialState = {
 	rates: null,
 	baseCurrency: 'USD',
@@ -38,27 +38,24 @@ export const getRates = (base) => async (dispatch, getState) => {
 	try {
 
 		const ratesResponse = await fetchExchangeData(conversionData.baseCurrency);
+		let ratesArray = Object.entries(ratesResponse.data.rates)
 		let rates = ratesResponse.data.rates
 		dispatch({type: FETCH_RATES, payload: rates});
 	} catch (e) {
 		dispatch({type: FETCH_ERROR, payload: e.message});
 	}
 }
-const formatRatesResponse = (rates) => {
-	return rates.map((rate, index) => ({id: `${index}`, currency: `${rate[0]}`, rate: `${rate[1]}`}))
-}
-
 
 export const getHistoricalRates = (date) => async (dispatch, getState) => {
 	try {
 		const ratesResponse = await fetchHistoricalRates(date);
-		const formattedRates = await formatRatesResponse(Object.entries(ratesResponse.data.rates))
-		dispatch({type: FETCH_HISTORICAL_RATES, payload: {date, rates: formattedRates}})
+
+		dispatch({type: FETCH_HISTORICAL_RATES, payload: {date, rates: Object.entries(ratesResponse.data.rates)}})
 	} catch (e) {
 		dispatch({type: FETCH_ERROR, payload: e.message});
 	}
 }
-const formatCurrenciesResponse = (results) => {
+const formatResponse = (results) => {
 	return results.map(curr => ({code: `${curr[0]}`, fullName: `${curr[1]}`}));
 }
 /**
@@ -70,7 +67,9 @@ const formatCurrenciesResponse = (results) => {
 export const getCurrencies = () => async (dispatch) => {
 	try {
 		const currenciesResponse = await fetchCurrencyData();
-		let formattedResponse = await formatCurrenciesResponse(Object.entries(currenciesResponse.data));
+		console.log(`%c currenciesResponse: ${currenciesResponse}`, 'font-size: 15px;color: blue; background: goldenrod')
+		const results = await Object.entries(currenciesResponse.data.currencies)
+		let formattedResponse = formatResponse(results);
 		dispatch({type: FETCH_CURRENCIES, payload: formattedResponse})
 	} catch (e) {
 		dispatch({type: FETCH_ERROR, payload: e.message});

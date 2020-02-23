@@ -5,6 +5,10 @@ export const debounce = (fn, ms = 0) => {
 		timeoutId = setTimeout(() => fn.apply(this, args), ms);
 	};
 };
+export const formatCurrency = (currency, amount) => {
+	let locale = window.navigator.language;
+	return new Intl.NumberFormat(locale, {currency: `${currency}`, style: 'currency'}).format(amount)
+}
 export default Object.entries({
 	"AED": 3.6732,
 	"AFN": 78.10229,

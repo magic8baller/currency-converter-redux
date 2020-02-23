@@ -11,5 +11,5 @@ export const fetchHistoricalRates = date => {
 	return axios.get(`http://localhost:5000/rates/${date}`);
 }
 export const fetchCurrencyData = () => {
-	return axios.get('https://openexchangerates.org/api/currencies.json');
+	return axios.get('http://localhost:5000/currencies');
 }

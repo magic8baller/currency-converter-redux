@@ -4,7 +4,7 @@ import {connect} from 'react-redux';
 import {getHistoricalRates} from 'redux/ducks/exchangeData';
 import {formatISODate} from "utils/dateHelper";
 import {DatePicker} from 'antd';
-import FilterableRatesTable from '../FilterableRatesTable'
+import FilterableRatesTable from '../Table/FilterableRatesTable'
 
 
 

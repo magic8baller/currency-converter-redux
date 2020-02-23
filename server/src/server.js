@@ -5,12 +5,9 @@ const axios = require('axios');
 const redis = require('redis');
 const app = express();
 const fs = require('fs');
-// const bluebird = require("bluebird");
 const morgan = require('morgan');
 const winston = require('winston');
-
-// bluebird.promisifyAll(redis.RedisClient.prototype);
-// bluebird.promisifyAll(redis.Multi.prototype);
+const currencies = require('./currencies.json')
 
 const {REDIS_HOST, REDIS_PORT, REDIS_AUTH} = process.env
 let accessLogStream = fs.createWriteStream(path.join(__dirname, 'access.log'), {flags: 'a'});
@@ -49,6 +46,10 @@ client.on('error', err => {
 });
 let formattedDate = new Date().toISOString()
 
+app.get('/currencies', (req, res) => {
+	logger.log('info', 'Sending currencies list', {timestamp: formattedDate})
+	return res.status(200).send({currencies: currencies});
+})
 app.get('/rates', (req, res) => {
 
 	client.exists('timestamp', (error, reply) => {
@@ -57,7 +58,7 @@ app.get('/rates', (req, res) => {
 			client.get('timestamp', (error, object) => {
 				if (timeNow - new Date(object).getTime() > 3600000) {
 					logger.log('info', 'Expired data: refreshing now', {timestamp: formattedDate})
-					axios.get(`https://openexchangerates.org/api/latest.json?app_id=${process.env.APP_ID}&show_alternative=1`)
+					axios.get(`https://openexchangerates.org/api/latest.json?app_id=${process.env.APP_ID}`)
 						.then(result => {
 							client.hmset('currentRates', result.data.rates)
 							client.set('timestamp', formattedDate)
@@ -76,7 +77,7 @@ app.get('/rates', (req, res) => {
 			})
 		} else {
 			logger.log('info', 'No current logs', {timestamp: formattedDate})
-			axios.get(`https://openexchangerates.org/api/latest.json?app_id=${process.env.APP_ID}&show_alternative=1`)
+			axios.get(`https://openexchangerates.org/api/latest.json?app_id=${process.env.APP_ID}`)
 				.then(result => {
 					client.set('timestamp', formattedDate)
 					client.hmset('currentRates', result.data.rates)
@@ -89,8 +90,13 @@ app.get('/rates', (req, res) => {
 })
 
 app.get('/rates/:date', (req, res) => {
-	const {date} = req.params;
-	const url = `https://openexchangerates.org/api/historical/${date}.json?app_id=${process.env.APP_ID}&show_alternative=true&prettyprint=false`;
+let date;
+if (!req.params.date) {
+	date = '2020-01-01'
+} else {
+	date = req.params.date
+}
+	const url = `https://openexchangerates.org/api/historical/${date}.json?app_id=${process.env.APP_ID}`;
 	const countKey = `USD:${date}:count`;
 	const ratesKey = `USD:${date}:rates`;
 	client.incr(countKey, (err, count) => {
@@ -102,6 +108,7 @@ app.get('/rates/:date', (req, res) => {
 				client.hmset(ratesKey, response.data.rates);
 				res.send({count, rates: response.data.rates})
 			})
+			.catch(e => console.error(e.message))
 		})
 	})
 })
