@@ -11,7 +11,7 @@
     "@welldone-software/why-did-you-render": "^4.0.3",
     "@y0c/react-datepicker": "^1.0.1",
     "antd": "^3.26.9",
-    "axios": "^0.19.2",
+    "axios": "^0.21.1",
     "babel-plugin-import": "^1.13.0",
     "cashify": "^2.3.1",
     "connected-react-router": "^6.6.1",
