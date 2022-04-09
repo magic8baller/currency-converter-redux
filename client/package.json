@@ -22,7 +22,7 @@
     "downshift": "^5.0.0",
     "emotion-theming": "10.0.27",
     "history": "^4.10.1",
-    "moment": "^2.24.0",
+    "moment": "^2.29.2",
     "react": "^16.12.0",
     "react-app-rewired": "^2.1.5",
     "react-currency-flags": "^0.1.1",
